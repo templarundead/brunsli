@@ -56,7 +56,7 @@ jobs:
 
     - name: upload
       if: ${{ matrix.upload_artifacts }}
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3
       with:
         name: ${{ matrix.os }}
         path: out/artifacts
