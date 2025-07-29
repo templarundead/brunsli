@@ -1,6 +1,7 @@
 # Description:
 #   Brunsli is an compact JPEG data format.
 
+load("@rules_fuzzing//fuzzing:cc_defs.bzl", "cc_fuzz_test")
 load(":compiler_config_setting.bzl", "create_msvc_config")
 
 package(
@@ -127,7 +128,7 @@ cc_library(
     copts = STRICT_C_OPTIONS,
     deps = [
         ":brunslicommon",
-        "@brotli//:brotlidec",
+        "@org_brotli//:brotlidec",
     ],
 )
 
@@ -138,7 +139,7 @@ cc_library(
     copts = STRICT_C_OPTIONS,
     deps = [
         ":brunslicommon",
-        "@brotli//:brotlienc",
+        "@org_brotli//:brotlienc",
     ],
 )
 
@@ -170,10 +171,7 @@ config_setting(
 )
 
 EXPERIMENTAL_DEPS = select({
-    ":experimental": [
-        ":groups",
-        "@highwayhash//:highwayhash_inc",
-    ],
+    ":experimental": [":groups"],
     "//conditions:default": [],
 })
 
@@ -223,33 +221,57 @@ cc_binary(
     ] + EXPERIMENTAL_DEPS,
 )
 
-cc_test(
-    name = "bit_reader_test",
-    srcs = ["c/tests/bit_reader_test.cc"],
-    copts = ["-Iexternal/gtest/include"],
-    deps = [
-        ":brunslicommon",
-        ":brunslidec",
-        "@gtest//:gtest_main",
-    ],
+cc_library(
+    name = "test_utils",
+    srcs = ["c/tests/test_utils.cc"],
+    hdrs = ["c/tests/test_utils.h"],
+    defines = ['BRUNSLI_ROOT_PACKAGE=\'"dev_brunsli"\''],
+    deps = ["@bazel_tools//tools/cpp/runfiles"],
 )
 
-cc_test(
-    name = "huffman_tree_test",
-    srcs = ["c/tests/huffman_tree_test.cc"],
-    copts = ["-Iexternal/gtest/include"],
-    deps = [
-        ":brunslidec",
-        "@gtest//:gtest_main",
-    ],
-)
+BRUNSLI_LIBS = [
+    ":brunslicommon",
+    ":brunslidec",
+    ":brunslienc",
+    ":brunslidec_c",
+    ":brunslienc_c",
+]
 
-cc_test(
-    name = "lehmer_code_test",
-    srcs = ["c/tests/lehmer_code_test.cc"],
+TESTS = [
+    "bit_reader",
+    "build_huffman_table",
+    "c_api",
+    "context",
+    "distributions",
+    "fallback",
+    "headerless",
+    "huffman_tree",
+    "lehmer_code",
+    "quant_matrix",
+    # "stream_decode", # fix brotli dependency
+]
+
+FUZZERS = [
+    "decode",
+    "decode_streaming",
+    "encode",
+]
+
+[cc_test(
+    name = item + "_test",
+    srcs = ["c/tests/" + item + "_test.cc"],
     copts = ["-Iexternal/gtest/include"],
-    deps = [
-        ":brunslicommon",
-        "@gtest//:gtest_main",
+    deps = BRUNSLI_LIBS + [
+        ":test_utils",
+        "@com_google_googletest//:gtest_main",
     ],
-)
+) for item in TESTS]
+
+# To start fuzzing run: bazel run --config=asan-libfuzzer //:fuzz_FUZZER_run
+[cc_fuzz_test(
+    name = "fuzz_" + item,
+    srcs = ["c/tests/fuzz_" + item + ".cc"],
+    deps = BRUNSLI_LIBS + [
+        ":test_utils",
+    ],
+) for item in FUZZERS]

@@ -22,7 +22,7 @@ java_library(
         ["*.java"],
         exclude = ["*Test*.java"],
     ),
-    resource_jars = ["//:license"],
+    resources = ["//:license"],
 )
 
 java_library(
@@ -31,7 +31,7 @@ java_library(
     srcs = glob(["*Test*.java"]),
     deps = [
         ":codec",
-        "@junit_junit//jar",
+        "@maven//:junit_junit",
     ],
 )
 
